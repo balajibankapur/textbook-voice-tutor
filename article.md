@@ -4,9 +4,6 @@
 
 **TL;DR:** I built a voice-enabled tutor that answers Grade 2 questions strictly from a scanned NCERT science chapter. Along the way I thought I was using Jev as a decision model — I wasn't. Switching to Jev's actual `/api/alpha/decisions` endpoint made the gate **4.3× faster**, cut cost **~25×**, and gave me real calibrated probabilities. Then I added a Q&A cache that uses Jev's `choice` decisions to shortcut repeat questions — another **27% latency drop on average, 49% at the P95**. Below is the full flow, the tech stack, the architecture, the pivot, and the numbers.
 
-![Hero image — Streamlit voice tutor UI alongside a scanned NCERT page](docs/images/hero.png)
-> *Hero image to replace: screenshot of the Streamlit UI with 🟢 "Ready — press the mic to speak" status alongside your scanned NCERT page. See `docs/images/README.md`.*
-
 ---
 
 ## Day One

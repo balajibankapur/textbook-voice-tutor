@@ -19,10 +19,6 @@ Both `.svg` (source, editable) and `.png` (Medium-ready, 1400px wide) are kept �
 | `jev-types.png` | After the four-primitives table — noul / choice / score cards |
 | `cache-flow.png` | Inside the Q&A cache "Pattern" subsection — match/miss flow |
 
-### Hero (needs you to add)
-
-Take a screenshot of the Streamlit app in voice mode with the status pill showing 🟢 **"Ready — press the mic to speak"** and the Plants chapter selected. Save as **`hero.png`** here. On Medium that becomes the article's cover.
-
 ### Regenerating PNGs from SVG source
 
 ```bash
