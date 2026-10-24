@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 18px; font-weight: 700; fill: #1f2d3d; }
+      .sub   { font-size: 12px; fill: #5a5a5a; font-style: italic; }
+      .label { font-size: 12px; fill: #333; text-anchor: middle; }
+      .num   { font-size: 13px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+      .axis  { stroke: #999; stroke-width: 1; }
+      .grid  { stroke: #e0e0e0; stroke-width: 1; stroke-dasharray: 3,3; }
+      .delta { font-size: 14px; font-weight: 700; text-anchor: middle; fill: #117c3f; }
+    </style>
+  </defs>
+
+  <text x="30" y="30" class="title">Q&amp;A cache: with vs. without</text>
+  <text x="30" y="52" class="sub">14 questions · 36-pair cache · cache hit rate 50% on answerable set</text>
+
+  <!-- P50 panel -->
+  <text x="140" y="90" class="title" font-size="14" text-anchor="middle">P50 total (ms)</text>
+  <line x1="60" y1="300" x2="240" y2="300" class="axis"/>
+  <line x1="60" y1="300" x2="60" y2="110" class="axis"/>
+  <line x1="60" y1="240" x2="240" y2="240" class="grid"/>
+  <text x="52" y="244" font-size="10" fill="#999" text-anchor="end">1000</text>
+  <line x1="60" y1="180" x2="240" y2="180" class="grid"/>
+  <text x="52" y="184" font-size="10" fill="#999" text-anchor="end">2000</text>
+
+  <!-- 1750 ms -->
+  <rect x="90" y="195" width="50" height="105" fill="#dc7a6a"/>
+  <text x="115" y="248" class="num">1,750</text>
+  <text x="115" y="320" class="label">OFF</text>
+  <!-- 1345 ms -->
+  <rect x="170" y="219" width="50" height="81" fill="#4b9c6b"/>
+  <text x="195" y="266" class="num">1,345</text>
+  <text x="195" y="320" class="label">ON</text>
+  <text x="155" y="130" class="delta">−23%</text>
+
+  <!-- P95 panel -->
+  <text x="420" y="90" class="title" font-size="14" text-anchor="middle">P95 total (ms)</text>
+  <line x1="340" y1="300" x2="520" y2="300" class="axis"/>
+  <line x1="340" y1="300" x2="340" y2="110" class="axis"/>
+  <line x1="340" y1="258" x2="520" y2="258" class="grid"/>
+  <text x="332" y="262" font-size="10" fill="#999" text-anchor="end">1000</text>
+  <line x1="340" y1="216" x2="520" y2="216" class="grid"/>
+  <text x="332" y="220" font-size="10" fill="#999" text-anchor="end">2000</text>
+  <line x1="340" y1="174" x2="520" y2="174" class="grid"/>
+  <text x="332" y="178" font-size="10" fill="#999" text-anchor="end">3000</text>
+  <line x1="340" y1="132" x2="520" y2="132" class="grid"/>
+  <text x="332" y="136" font-size="10" fill="#999" text-anchor="end">4000</text>
+
+  <!-- 4660 ms → 196 px (scale: 1 ms ≈ 0.042 px) -->
+  <rect x="370" y="104" width="50" height="196" fill="#dc7a6a"/>
+  <text x="395" y="202" class="num">4,660</text>
+  <text x="395" y="320" class="label">OFF</text>
+  <!-- 2396 ms → 101 px -->
+  <rect x="450" y="199" width="50" height="101" fill="#4b9c6b"/>
+  <text x="475" y="254" class="num">2,396</text>
+  <text x="475" y="320" class="label">ON</text>
+  <text x="435" y="130" class="delta">−49%</text>
+
+  <!-- Avg panel -->
+  <text x="700" y="90" class="title" font-size="14" text-anchor="middle">Avg total (ms)</text>
+  <line x1="620" y1="300" x2="800" y2="300" class="axis"/>
+  <line x1="620" y1="300" x2="620" y2="110" class="axis"/>
+  <line x1="620" y1="240" x2="800" y2="240" class="grid"/>
+  <text x="612" y="244" font-size="10" fill="#999" text-anchor="end">1000</text>
+  <line x1="620" y1="180" x2="800" y2="180" class="grid"/>
+  <text x="612" y="184" font-size="10" fill="#999" text-anchor="end">2000</text>
+
+  <!-- 1967 → 118 px -->
+  <rect x="650" y="182" width="50" height="118" fill="#dc7a6a"/>
+  <text x="675" y="240" class="num">1,967</text>
+  <text x="675" y="320" class="label">OFF</text>
+  <!-- 1434 → 86 px -->
+  <rect x="730" y="214" width="50" height="86" fill="#4b9c6b"/>
+  <text x="755" y="258" class="num">1,434</text>
+  <text x="755" y="320" class="label">ON</text>
+  <text x="715" y="130" class="delta">−27%</text>
+
+  <!-- Caption -->
+  <rect x="30" y="350" width="840" height="60" fill="#f3f3f3" stroke="#ccc"/>
+  <text x="60" y="372" class="title" font-size="14">Gate accuracy stays 100%. Cache hits cost ~$0.000013 (one `choice` call) vs. ~$0.0008 full pipeline.</text>
+  <text x="60" y="392" class="sub">P95 cut in half. On cache hits, the full pipeline is replaced by one Jev `choice` decision — ~60× cheaper per answered question.</text>
+</svg>

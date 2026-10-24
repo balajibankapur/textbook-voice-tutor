@@ -1,0 +1,105 @@
+{
+  "chapter_id": "ncert science",
+  "notes": "Labelled eval set for a scanned NCERT Plants chapter used with a Grade 2 (~7 yr old) student. Expected pages are approximate — chunker spans multiple pages, so the gate accepts any overlap with the listed set.",
+  "questions": [
+    {
+      "id": "p-01",
+      "question": "What are the three main types of plants?",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["trees", "shrubs", "herbs"],
+      "expected_pages": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "p-02",
+      "question": "What do climber plants do?",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["weak stems", "support"],
+      "expected_pages": [5, 6, 7, 8]
+    },
+    {
+      "id": "p-03",
+      "question": "What is a creeper?",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["ground"],
+      "expected_pages": [5, 6, 7, 8]
+    },
+    {
+      "id": "p-04",
+      "question": "Name some examples of climber plants.",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["money plant", "grapevine"],
+      "expected_pages": [5, 6, 7, 8]
+    },
+    {
+      "id": "p-05",
+      "question": "What are the parts of a plant?",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["roots", "stems", "leaves"],
+      "expected_pages": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "p-06",
+      "question": "What is the function of the stem?",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_keywords": ["support", "water"],
+      "expected_pages": [1, 2, 3, 4, 5, 6, 7, 8]
+    },
+    {
+      "id": "p-07",
+      "question": "Who was Isaac Newton?",
+      "category": "absent",
+      "expected_outcome": "refuse"
+    },
+    {
+      "id": "p-08",
+      "question": "What is the capital of France?",
+      "category": "absent",
+      "expected_outcome": "refuse"
+    },
+    {
+      "id": "p-09",
+      "question": "Explain the quadratic formula.",
+      "category": "absent",
+      "expected_outcome": "refuse"
+    },
+    {
+      "id": "p-10",
+      "question": "tell me more",
+      "category": "ambiguous",
+      "expected_outcome": "clarify"
+    },
+    {
+      "id": "p-11",
+      "question": "what is it?",
+      "category": "ambiguous",
+      "expected_outcome": "clarify"
+    },
+    {
+      "id": "p-12",
+      "question": "trees",
+      "category": "ambiguous",
+      "expected_outcome": "clarify"
+    },
+    {
+      "id": "p-13",
+      "question": "How do climber plants and creeper plants differ?",
+      "category": "multi_passage",
+      "expected_outcome": "answered",
+      "expected_keywords": ["climber", "creeper"],
+      "expected_pages": [5, 6, 7, 8]
+    },
+    {
+      "id": "p-14",
+      "question": "List different places where plants grow.",
+      "category": "answerable",
+      "expected_outcome": "answered",
+      "expected_pages": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    }
+  ]
+}

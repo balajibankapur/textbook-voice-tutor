@@ -1,0 +1,41 @@
+# Secrets — never commit
+.env
+.env.local
+*.key
+.env.*
+!.env.example
+
+# Scratch outputs
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Data (keep structure, drop contents)
+data/uploads/*
+data/extracted/*
+data/indexes/*
+data/metadata/*
+data/eval/*
+!data/uploads/.gitkeep
+!data/extracted/.gitkeep
+!data/indexes/.gitkeep
+!data/metadata/.gitkeep
+!data/eval/.gitkeep
+
+# Logs
+*.log
+logs/

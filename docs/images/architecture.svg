@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5a5a"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #1f2d3d; stroke-width: 2; }
+      .jev { fill: #FFF4D6; stroke: #B8860B; stroke-width: 2.5; }
+      .llm { fill: #E6F4FF; stroke: #0F62FE; stroke-width: 2; }
+      .voice { fill: #F0E6FF; stroke: #6929C4; stroke-width: 2; }
+      .cache { fill: #E8F6EE; stroke: #118150; stroke-width: 2.5; }
+      .title { font-size: 15px; font-weight: 700; fill: #1f2d3d; text-anchor: middle; }
+      .sub   { font-size: 11px; fill: #5a5a5a; text-anchor: middle; font-style: italic; }
+      .label { font-size: 12px; fill: #333; text-anchor: middle; }
+      .edge  { stroke: #5a5a5a; stroke-width: 1.5; fill: none; }
+      .edge-dim { stroke: #999; stroke-width: 1.5; stroke-dasharray: 5,4; fill: none; }
+      .yes { font-size: 11px; font-weight: 700; fill: #117c3f; }
+      .no  { font-size: 11px; font-weight: 700; fill: #a0290b; }
+    </style>
+  </defs>
+
+  <text x="450" y="30" font-size="20" font-weight="700" text-anchor="middle" fill="#1f2d3d">Textbook Voice Tutor — End-to-End Flow</text>
+  <text x="450" y="52" class="sub">Grade 2 student · scanned NCERT chapter · grounded answers only</text>
+
+  <!-- Student mic -->
+  <rect x="370" y="80" width="160" height="46" rx="23" class="voice"/>
+  <text x="450" y="100" class="title">🎙 Student speaks</text>
+  <text x="450" y="118" class="label">OpenAI Whisper STT</text>
+
+  <line x1="450" y1="126" x2="450" y2="150" class="edge" marker-end="url(#arrow)"/>
+
+  <!-- QA cache matcher -->
+  <rect x="300" y="150" width="300" height="60" rx="8" class="cache"/>
+  <text x="450" y="174" class="title">Q&amp;A Cache Matcher</text>
+  <text x="450" y="194" class="label">Jev `choice` decision — pick candidate or `none`</text>
+
+  <!-- Right: cache hit path -->
+  <path d="M 600 180 Q 760 180 760 420" class="edge" marker-end="url(#arrow)"/>
+  <text x="690" y="172" class="yes">cache hit</text>
+
+  <!-- Down: cache miss -->
+  <line x1="450" y1="210" x2="450" y2="240" class="edge" marker-end="url(#arrow)"/>
+  <text x="490" y="228" class="no">miss</text>
+
+  <!-- Retrieval -->
+  <rect x="330" y="240" width="240" height="46" rx="6" class="box"/>
+  <text x="450" y="260" class="title">FAISS retrieval</text>
+  <text x="450" y="278" class="label">MiniLM-L6-v2 · top-K chunks</text>
+
+  <line x1="450" y1="286" x2="450" y2="310" class="edge" marker-end="url(#arrow)"/>
+
+  <!-- Jev Gate -->
+  <rect x="280" y="310" width="340" height="76" rx="8" class="jev"/>
+  <text x="450" y="332" class="title">Jev Gate (one decisions call)</text>
+  <text x="450" y="350" class="label">3 × `noul`: clear · relevant · sufficient</text>
+  <text x="450" y="368" class="sub">calibrated probabilities, thresholded</text>
+
+  <!-- Branches -->
+  <!-- Left: clarify -->
+  <path d="M 280 350 Q 130 350 130 490" class="edge-dim" marker-end="url(#arrow)"/>
+  <text x="100" y="422" class="label">unclear →</text>
+  <text x="100" y="438" class="label">clarify</text>
+
+  <!-- Right: refuse -->
+  <path d="M 620 350 Q 820 350 820 490" class="edge-dim" marker-end="url(#arrow)"/>
+  <text x="862" y="422" class="label">←  refuse</text>
+  <text x="862" y="438" class="label">(fail-closed)</text>
+
+  <!-- Down: accepted -->
+  <line x1="450" y1="386" x2="450" y2="420" class="edge" marker-end="url(#arrow)"/>
+  <text x="490" y="406" class="yes">accepted</text>
+
+  <!-- LLM -->
+  <rect x="300" y="420" width="300" height="60" rx="6" class="llm"/>
+  <text x="450" y="444" class="title">GPT-4o-mini (OpenAI)</text>
+  <text x="450" y="464" class="label">grounded answer + page citations</text>
+
+  <line x1="450" y1="480" x2="450" y2="510" class="edge" marker-end="url(#arrow)"/>
+
+  <!-- Jev Verifier -->
+  <rect x="280" y="510" width="340" height="60" rx="8" class="jev"/>
+  <text x="450" y="534" class="title">Jev Verifier</text>
+  <text x="450" y="554" class="label">1 × `noul`: is every claim supported?</text>
+
+  <!-- Verifier branches -->
+  <path d="M 280 540 Q 130 540 130 660" class="edge-dim" marker-end="url(#arrow)"/>
+  <text x="80" y="608" class="label">unsupported →</text>
+  <text x="80" y="624" class="label">regenerate</text>
+  <text x="80" y="640" class="label">or refuse</text>
+
+  <line x1="450" y1="570" x2="450" y2="600" class="edge" marker-end="url(#arrow)"/>
+  <text x="500" y="590" class="yes">supported</text>
+
+  <!-- TTS -->
+  <rect x="340" y="600" width="220" height="46" rx="23" class="voice"/>
+  <text x="450" y="620" class="title">OpenAI TTS</text>
+  <text x="450" y="638" class="label">speaks the answer</text>
+
+  <line x1="450" y1="646" x2="450" y2="670" class="edge" marker-end="url(#arrow)"/>
+  <text x="450" y="690" class="title">🔊 Answer spoken + 📖 pages shown</text>
+
+  <!-- Legend -->
+  <rect x="30" y="700" width="12" height="12" class="jev"/>
+  <text x="48" y="711" font-size="11" fill="#333">Jev decision (noul / choice)</text>
+  <rect x="220" y="700" width="12" height="12" class="llm"/>
+  <text x="238" y="711" font-size="11" fill="#333">LLM (generative)</text>
+  <rect x="340" y="700" width="12" height="12" class="voice"/>
+  <text x="358" y="711" font-size="11" fill="#333">Voice (STT / TTS)</text>
+  <rect x="450" y="700" width="12" height="12" class="cache"/>
+  <text x="468" y="711" font-size="11" fill="#333">Cache (match-first)</text>
+  <text x="620" y="711" font-size="11" fill="#5a5a5a" font-style="italic">→ no unverified answer ever reaches the student.</text>
+</svg>
