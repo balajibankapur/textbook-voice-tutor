@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5a5a"/>
+    </marker>
+    <style>
+      .title { font-size: 16px; font-weight: 700; fill: #1f2d3d; }
+      .step  { fill: #ffffff; stroke: #1f2d3d; stroke-width: 1.5; }
+      .jev   { fill: #FFF4D6; stroke: #B8860B; stroke-width: 2; }
+      .cache { fill: #E8F6EE; stroke: #117c3f; stroke-width: 2; }
+      .full  { fill: #FBE9E7; stroke: #a0290b; stroke-width: 2; }
+      .label { font-size: 13px; font-weight: 600; fill: #1f2d3d; text-anchor: middle; }
+      .sub   { font-size: 11px; fill: #5a5a5a; text-anchor: middle; }
+      .edge  { stroke: #5a5a5a; stroke-width: 1.5; fill: none; }
+      .edgeGood { stroke: #117c3f; stroke-width: 2; fill: none; }
+      .edgeBad  { stroke: #a0290b; stroke-width: 2; fill: none; }
+      .edgeLabel { font-size: 11px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <text x="450" y="28" class="title" text-anchor="middle">Q&amp;A cache lookup — fast path when student's question matches a stored FAQ</text>
+
+  <!-- Student question -->
+  <rect x="30" y="100" width="130" height="46" rx="23" class="step"/>
+  <text x="95" y="120" class="label">Student Q</text>
+  <text x="95" y="138" class="sub">"what do climbers do?"</text>
+
+  <line x1="160" y1="123" x2="200" y2="123" class="edge" marker-end="url(#arrow3)"/>
+
+  <!-- Embed + FAISS -->
+  <rect x="200" y="100" width="150" height="46" rx="6" class="step"/>
+  <text x="275" y="120" class="label">MiniLM + FAISS</text>
+  <text x="275" y="138" class="sub">top-K stored questions</text>
+
+  <line x1="350" y1="123" x2="390" y2="123" class="edge" marker-end="url(#arrow3)"/>
+
+  <!-- Jev choice -->
+  <rect x="390" y="90" width="180" height="66" rx="8" class="jev"/>
+  <text x="480" y="112" class="label">Jev `choice`</text>
+  <text x="480" y="130" class="sub">pick candidate or "none"</text>
+  <text x="480" y="148" class="sub" font-family="monospace" fill="#B8860B">prob ≥ 0.6?</text>
+
+  <!-- Hit branch (down-right) -->
+  <path d="M 570 110 Q 700 110 700 170" class="edgeGood" marker-end="url(#arrow3)"/>
+  <text x="640" y="100" class="edgeLabel" fill="#117c3f">YES → hit</text>
+  <rect x="620" y="170" width="160" height="56" rx="6" class="cache"/>
+  <text x="700" y="192" class="label">Stored answer</text>
+  <text x="700" y="210" class="sub">~500ms total · 25× cheaper</text>
+
+  <!-- Miss branch -->
+  <path d="M 480 156 L 480 190" class="edgeBad" marker-end="url(#arrow3)"/>
+  <text x="500" y="178" class="edgeLabel" fill="#a0290b">NO →</text>
+  <rect x="380" y="190" width="200" height="46" rx="6" class="full"/>
+  <text x="480" y="212" class="label">Full pipeline fallback</text>
+  <text x="480" y="228" class="sub">retrieve → gate → LLM → verify</text>
+</svg>

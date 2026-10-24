@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 16px; font-weight: 700; fill: #1f2d3d; }
+      .card { fill: #FFF4D6; stroke: #B8860B; stroke-width: 2; }
+      .cardTitle { font-size: 15px; font-weight: 700; fill: #B8860B; text-anchor: middle; }
+      .cardSub { font-size: 11px; fill: #5a5a5a; text-anchor: middle; font-style: italic; }
+      .json { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; fill: #333; }
+      .highlight { fill: #117c3f; font-weight: 700; }
+    </style>
+  </defs>
+
+  <text x="400" y="30" class="title" text-anchor="middle">Jev decision primitives — one request, calibrated outputs</text>
+
+  <!-- noul card -->
+  <rect x="20" y="60" width="245" height="230" rx="10" class="card"/>
+  <text x="142" y="90" class="cardTitle">noul</text>
+  <text x="142" y="108" class="cardSub">truth / presence probability</text>
+  <line x1="40" y1="122" x2="245" y2="122" stroke="#B8860B" stroke-width="0.5" opacity="0.4"/>
+  <text x="40" y="145" class="json">{</text>
+  <text x="55" y="162" class="json">"type": "noul",</text>
+  <text x="55" y="179" class="json">"instructions":</text>
+  <text x="55" y="196" class="json">"X is true..."</text>
+  <text x="40" y="213" class="json">}</text>
+  <text x="40" y="240" class="json">→ { <tspan class="highlight">"noul": 0.87</tspan> }</text>
+  <text x="40" y="270" class="json" fill="#5a5a5a" font-style="italic">use: gate, verifier</text>
+
+  <!-- choice card -->
+  <rect x="285" y="60" width="245" height="230" rx="10" class="card"/>
+  <text x="407" y="90" class="cardTitle">choice</text>
+  <text x="407" y="108" class="cardSub">pick one of N named options</text>
+  <line x1="305" y1="122" x2="510" y2="122" stroke="#B8860B" stroke-width="0.5" opacity="0.4"/>
+  <text x="305" y="145" class="json">{</text>
+  <text x="320" y="162" class="json">"type": "choice",</text>
+  <text x="320" y="179" class="json">"criteria": {</text>
+  <text x="335" y="196" class="json">"a": "...", "b": "..."}</text>
+  <text x="305" y="213" class="json">}</text>
+  <text x="305" y="240" class="json">→ <tspan class="highlight">"choice":"a"</tspan>,</text>
+  <text x="305" y="255" class="json">  "probabilities":{...}</text>
+  <text x="305" y="280" class="json" fill="#5a5a5a" font-style="italic">use: Q&amp;A match, routing</text>
+
+  <!-- score card -->
+  <rect x="550" y="60" width="230" height="230" rx="10" class="card"/>
+  <text x="665" y="90" class="cardTitle">score</text>
+  <text x="665" y="108" class="cardSub">weighted criteria scoring</text>
+  <line x1="570" y1="122" x2="770" y2="122" stroke="#B8860B" stroke-width="0.5" opacity="0.4"/>
+  <text x="570" y="145" class="json">{</text>
+  <text x="585" y="162" class="json">"type": "score",</text>
+  <text x="585" y="179" class="json">"criteria": [...]</text>
+  <text x="570" y="196" class="json">}</text>
+  <text x="570" y="223" class="json">→ <tspan class="highlight">"score": 0.72</tspan>,</text>
+  <text x="570" y="238" class="json">  "legend":{...}</text>
+  <text x="570" y="268" class="json" fill="#5a5a5a" font-style="italic">use: ranking, grading</text>
+</svg>

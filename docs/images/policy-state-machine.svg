@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 340" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5a5a"/>
+    </marker>
+    <style>
+      .title { font-size: 16px; font-weight: 700; fill: #1f2d3d; }
+      .gate { fill: #FFF4D6; stroke: #B8860B; stroke-width: 2.5; }
+      .outcome { fill: #ffffff; stroke: #1f2d3d; stroke-width: 1.5; }
+      .accept { fill: #E8F6EE; stroke: #117c3f; stroke-width: 2; }
+      .refuse { fill: #FBE9E7; stroke: #a0290b; stroke-width: 2; }
+      .label { font-size: 13px; font-weight: 600; fill: #1f2d3d; text-anchor: middle; }
+      .sub { font-size: 11px; fill: #5a5a5a; text-anchor: middle; }
+      .edge { stroke: #5a5a5a; stroke-width: 1.5; fill: none; }
+      .edgeLabel { font-size: 11px; font-weight: 700; fill: #333; }
+    </style>
+  </defs>
+
+  <text x="410" y="30" class="title" text-anchor="middle">Deterministic policy — what the controller does with the gate's three noul scores</text>
+
+  <!-- Gate box center -->
+  <rect x="310" y="60" width="200" height="60" rx="8" class="gate"/>
+  <text x="410" y="84" class="label">Jev gate output</text>
+  <text x="410" y="104" class="sub">clear · relevant · sufficient</text>
+
+  <!-- clarify branch (left) -->
+  <path d="M 310 90 Q 150 90 150 170" class="edge" marker-end="url(#arrow2)"/>
+  <text x="200" y="76" class="edgeLabel">¬clear →</text>
+  <rect x="70" y="170" width="160" height="56" rx="6" class="outcome"/>
+  <text x="150" y="192" class="label">CLARIFY</text>
+  <text x="150" y="210" class="sub">ask one question, wait</text>
+
+  <!-- expand branch -->
+  <path d="M 410 120 L 410 170" class="edge" marker-end="url(#arrow2)"/>
+  <text x="430" y="152" class="edgeLabel">¬relevant / ¬sufficient</text>
+  <rect x="330" y="170" width="160" height="56" rx="6" class="outcome"/>
+  <text x="410" y="192" class="label">EXPAND</text>
+  <text x="410" y="210" class="sub">widen top-K, re-ask</text>
+
+  <!-- accept branch (right) -->
+  <path d="M 510 90 Q 680 90 680 170" class="edge" marker-end="url(#arrow2)"/>
+  <text x="580" y="76" class="edgeLabel">all three ≥ threshold</text>
+  <rect x="600" y="170" width="160" height="56" rx="6" class="accept"/>
+  <text x="680" y="192" class="label">ANSWER</text>
+  <text x="680" y="210" class="sub">send to LLM</text>
+
+  <!-- out of budget → REFUSE -->
+  <path d="M 410 226 L 410 260" class="edge" marker-end="url(#arrow2)"/>
+  <text x="430" y="248" class="edgeLabel">budget exhausted</text>
+  <rect x="330" y="260" width="160" height="56" rx="6" class="refuse"/>
+  <text x="410" y="282" class="label">REFUSE</text>
+  <text x="410" y="300" class="sub">chapter can't support it</text>
+
+  <!-- JevError → fail-closed -->
+  <path d="M 310 110 Q 180 110 100 260" class="edge" marker-end="url(#arrow2)"/>
+  <text x="110" y="250" class="edgeLabel">JevError →</text>
+  <rect x="20" y="260" width="160" height="56" rx="6" class="refuse"/>
+  <text x="100" y="282" class="label">FAIL CLOSED</text>
+  <text x="100" y="300" class="sub">never pretend</text>
+</svg>

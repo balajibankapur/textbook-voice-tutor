@@ -62,21 +62,7 @@ textbook-voice-tutor/
 
 ### Ingestion (one-time per chapter)
 
-```
-Scanned PDF
-   ↓
-PyMuPDF — try embedded text
-   ↓
-If scanned → Tesseract OCR
-   ↓
-Normalize (de-hyphenate, collapse whitespace)
-   ↓
-Structure-aware chunker
-   ↓
-MiniLM-L6-v2 → embeddings
-   ↓
-FAISS index + SQLite metadata
-```
+![Ingestion pipeline — PDF to OCR to chunks to FAISS](docs/images/ingestion-flow.png)
 
 Idempotent per `chapter_id`. Each chunk carries `page_start`, `page_end`, `section_title`, and an OCR-quality tag so bad OCR pages can be flagged (not silently accepted).
 
@@ -111,6 +97,8 @@ Three design points worth calling out:
 1. **The gate runs before the LLM.** The LLM is never asked a question whose evidence has not already been judged sufficient.
 2. **Fail closed.** Any network error, invalid JSON, or timeout at the gate → the student is told we couldn't verify. We never silently fall through to "best guess".
 3. **The verifier is a separate model** from the writer, so it isn't marking its own homework.
+
+![Policy state machine — how the controller routes the gate's three noul scores](docs/images/policy-state-machine.png)
 
 ---
 
@@ -167,6 +155,8 @@ Four decision primitives:
 | `score` | Weighted criteria scoring | `{"score": 0.16, "legend": {...}, "probabilities": {...}}` |
 | `box` | Spatial bounding box | `{"box": {"top": 0.05, ...}}` |
 
+![Jev decision types — noul, choice, score at a glance](docs/images/jev-types.png)
+
 **Multiple decisions in one request.** The gate's three questions — clarity, relevance, sufficiency — went from three JSON fields parsed out of one chat response to **three `noul` entries in a single decisions call**:
 
 ```json
@@ -217,7 +207,7 @@ Same 14 labelled questions. Same Jev model slug (`jev-1.14`). Only difference: e
 
 That's the right-tool-for-the-job dividend. Chat completions are optimized for free-form token generation. Decision models are optimized for one thing: classified outputs with calibrated probabilities. Both are the same underlying model class, but served via different inference paths. The chat path pays for generality we weren't using.
 
-![Chat API vs decisions API — latency and cost](docs/images/ab-latency-cost.svg)
+![Chat API vs decisions API — latency and cost](docs/images/ab-latency-cost.png)
 
 ---
 
@@ -227,20 +217,9 @@ Even at 1.7s/question, the gate dominates — ~40% of total time. For a product 
 
 ### The Pattern
 
-```
-Offline (per chapter, one time):
-  LLM generates N question/answer pairs grounded in the chapter
-  Embed each question
-  Build a second FAISS index: chapter.qa.faiss
-  Store pairs + embeddings in SQLite
+Offline (one time per chapter): the LLM generates grounded Q&A pairs from the chapter, each embedded and stored. Live: match the student's question against the stored FAQ using a Jev `choice` decision; serve on a confident hit, fall through to the full pipeline otherwise.
 
-Live query:
-  Student asks a question
-  Embed → FAISS top-K over stored questions
-  Jev `choice` decision: pick best candidate (or "none")
-  If chosen candidate's probability ≥ threshold → serve stored answer
-  Else → fall through to the normal retrieve + gate + LLM path
-```
+![Q&A cache flow — match-first, fall through on miss](docs/images/cache-flow.png)
 
 The matcher is where Jev finally earns its calibration. The `choice` decision takes the student's question as `state` and the top-K FAISS candidates as named criteria, plus an explicit `none` option:
 
@@ -299,7 +278,7 @@ Same 14 questions. Cache corpus: 36 pairs generated at ~$0.03.
 
 **P95 cut in half. Zero accuracy loss.** Cache hits now cost ~$0.000013 (one `choice` decision) instead of ~$0.0003 (gate) + ~$0.0005 (LLM). About **~60× cheaper per answered question** when the cache hits.
 
-![Q&A cache ON vs OFF — P50, P95, average total latency](docs/images/cache-ab.svg)
+![Q&A cache ON vs OFF — P50, P95, average total latency](docs/images/cache-ab.png)
 
 Hit rate scales with corpus size — bumping pairs-per-chunk from 12 to 20 would push the Plants chapter from 36 to ~60 pairs and probably take hit rate from 50% to 70%+. Generation cost is still cents.
 
@@ -369,7 +348,7 @@ Every edge that isn't "accepted" / "supported" either:
 
 **No path leads to an unverified answer being spoken.** That's the whole point.
 
-![End-to-end architecture — voice loop, cache-first match, Jev gate + verifier, LLM, TTS](docs/images/architecture.svg)
+![End-to-end architecture — voice loop, cache-first match, Jev gate + verifier, LLM, TTS](docs/images/architecture.png)
 
 ---
 

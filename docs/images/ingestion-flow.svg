@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a5a5a"/>
+    </marker>
+    <style>
+      .title { font-size: 16px; font-weight: 700; fill: #1f2d3d; }
+      .step { fill: #ffffff; stroke: #1f2d3d; stroke-width: 1.5; }
+      .ocr  { fill: #FFF4E5; stroke: #B8550B; stroke-width: 2; }
+      .store{ fill: #E6F4FF; stroke: #0F62FE; stroke-width: 2; }
+      .label { font-size: 12px; font-weight: 600; fill: #1f2d3d; text-anchor: middle; }
+      .sub   { font-size: 10px; fill: #5a5a5a; text-anchor: middle; font-style: italic; }
+      .edge  { stroke: #5a5a5a; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <text x="450" y="26" class="title" text-anchor="middle">Ingestion — one-time per chapter, idempotent</text>
+
+  <!-- 1 PDF -->
+  <rect x="20" y="60" width="110" height="60" rx="6" class="step"/>
+  <text x="75" y="82" class="label">Scanned PDF</text>
+  <text x="75" y="100" class="sub">PyMuPDF</text>
+
+  <line x1="130" y1="90" x2="160" y2="90" class="edge" marker-end="url(#arrow4)"/>
+
+  <!-- 2 OCR -->
+  <rect x="160" y="60" width="120" height="60" rx="6" class="ocr"/>
+  <text x="220" y="82" class="label">Tesseract OCR</text>
+  <text x="220" y="100" class="sub">per-page quality tag</text>
+
+  <line x1="280" y1="90" x2="310" y2="90" class="edge" marker-end="url(#arrow4)"/>
+
+  <!-- 3 Normalize -->
+  <rect x="310" y="60" width="120" height="60" rx="6" class="step"/>
+  <text x="370" y="82" class="label">Normalize</text>
+  <text x="370" y="100" class="sub">dehyphenate, trim</text>
+
+  <line x1="430" y1="90" x2="460" y2="90" class="edge" marker-end="url(#arrow4)"/>
+
+  <!-- 4 Chunk -->
+  <rect x="460" y="60" width="120" height="60" rx="6" class="step"/>
+  <text x="520" y="82" class="label">Chunker</text>
+  <text x="520" y="100" class="sub">300–500 tok · overlap</text>
+
+  <line x1="580" y1="90" x2="610" y2="90" class="edge" marker-end="url(#arrow4)"/>
+
+  <!-- 5 Embed -->
+  <rect x="610" y="60" width="120" height="60" rx="6" class="step"/>
+  <text x="670" y="82" class="label">MiniLM-L6-v2</text>
+  <text x="670" y="100" class="sub">384-dim vectors</text>
+
+  <line x1="730" y1="90" x2="760" y2="90" class="edge" marker-end="url(#arrow4)"/>
+
+  <!-- 6 Store -->
+  <rect x="760" y="60" width="120" height="60" rx="6" class="store"/>
+  <text x="820" y="82" class="label">FAISS + SQLite</text>
+  <text x="820" y="100" class="sub">per-chapter index</text>
+
+  <!-- Note under all boxes -->
+  <text x="450" y="155" class="sub" font-size="11">faiss_id == chunk_id — keeps the mapping trivial · OCR failures flagged, never silently accepted</text>
+</svg>
