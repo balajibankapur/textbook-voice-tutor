@@ -404,7 +404,7 @@ Every edge that isn't "accepted" / "supported" either:
 
 Python, Streamlit, FAISS, SQLite — nothing exotic. The architectural ideas port directly to any stack.
 
-**Source:** [`github.com/<your-handle>/textbook-voice-tutor`](https://github.com/) *(replace with your actual repo URL before publishing)*
+**Source:** [`github.com/balajibankapur/textbook-voice-tutor`](https://github.com/balajibankapur/textbook-voice-tutor)
 
 ---
 
