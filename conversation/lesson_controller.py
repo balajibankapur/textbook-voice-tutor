@@ -121,6 +121,19 @@ def _pick(pool: list[str]) -> str:
     return random.choice(pool)
 
 
+def _speak_explain_and_ask(explanation: str, question: str) -> str:
+    """Combine an explanation and a follow-up question into one spoken block.
+
+    Keeps a short pause ('. ') and a friendly transition so TTS reads them
+    naturally instead of running them together.
+    """
+    explanation = (explanation or "").strip().rstrip(".") + "."
+    question = (question or "").strip()
+    if not question:
+        return explanation
+    return f"{explanation} Now, here's a question for you: {question}"
+
+
 # ---- controller ---------------------------------------------------------
 
 
@@ -252,14 +265,16 @@ class LessonController:
                     attempts_on_concept=state.attempts,
                     error=f"Explanation generator failed: {exc}",
                 )
-            # Repeat the same question so retry is comparable.
+            # Repeat the same question (spoken aloud too) so the student hears
+            # what to answer again.
+            spoken = _speak_explain_and_ask(prefix + clarification, state.last_prompt)
             step = LessonStep(
                 stage=LessonStage.CLARIFY,
                 concept=concept,
                 concept_index=state.concept_index,
                 concept_total=len(state.concepts),
                 attempts_on_concept=state.attempts,
-                speech_text=prefix + clarification,
+                speech_text=spoken,
                 prompt_text=state.last_prompt,
                 judgement=judgement,
             )
@@ -358,13 +373,16 @@ class LessonController:
                 )
             state.last_prompt = question
             state.stage = LessonStage.PRESENT
+            # Speak BOTH the explanation and the question in one audio block so
+            # a child who can't read sees the question text AND hears it.
+            spoken = _speak_explain_and_ask(explanation, question)
             return LessonStep(
                 stage=LessonStage.PRESENT,
                 concept=concept,
                 concept_index=state.concept_index,
                 concept_total=len(state.concepts),
                 attempts_on_concept=0,
-                speech_text=explanation,
+                speech_text=spoken,
                 prompt_text=question,
             )
         # REVERSE: ask the student to explain

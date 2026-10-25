@@ -133,7 +133,10 @@ def test_start_teach_mode_presents_and_prepares_question(seeded) -> None:
     ctrl = _controller(repo, generator=gen)
     state, step = ctrl.start(chapter_id="ch1", mode=LessonMode.TEACH)
     assert step.stage is LessonStage.PRESENT
-    assert step.speech_text == "Plants have roots."
+    # Both the explanation AND the question must be in the spoken block so the
+    # student (who may not read fluently) hears the question too.
+    assert "Plants have roots" in step.speech_text
+    assert "What are the parts?" in step.speech_text
     assert step.prompt_text == "What are the parts?"
     assert state.last_prompt == "What are the parts?"
     assert step.concept_index == 0
@@ -244,7 +247,8 @@ def test_advance_after_praise_moves_to_next_concept(seeded) -> None:
     step1 = ctrl.advance(state)
     assert step1.concept_index == 1
     assert step1.stage is LessonStage.PRESENT
-    assert step1.speech_text == "intro 2"
+    assert "intro 2" in step1.speech_text
+    assert "Q2?" in step1.speech_text
 
 
 def test_advance_after_clarify_stays_on_same_concept(seeded) -> None:
