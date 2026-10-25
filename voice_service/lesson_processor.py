@@ -74,6 +74,11 @@ class LessonProcessor(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
 
+        # Loud log on every meaningful frame type so we can trace the loop.
+        name = type(frame).__name__
+        if name not in {"AudioRawFrame", "InputAudioRawFrame", "OutputAudioRawFrame"}:
+            logger.info("LessonProcessor got %s (dir=%s)", name, direction)
+
         if isinstance(frame, StartFrame):
             await self.push_frame(frame, direction)
             await self._open_first_concept()
@@ -107,6 +112,10 @@ class LessonProcessor(FrameProcessor):
     # ---- Lesson flow -----------------------------------------------------
 
     async def _open_first_concept(self) -> None:
+        logger.info(
+            "opening lesson: chapter=%s mode=%s",
+            self.session.chapter_id, self.session.mode.value,
+        )
         try:
             self.state, step = self.controller.start(
                 chapter_id=self.session.chapter_id,
@@ -121,6 +130,14 @@ class LessonProcessor(FrameProcessor):
             return
 
         self._last_step = step
+        logger.info(
+            "lesson open; concept %d/%d title=%r stage=%s",
+            step.concept_index + 1, step.concept_total,
+            getattr(step.concept, "title", "?"),
+            step.stage.value,
+        )
+        preview = (step.speech_text or "")[:120]
+        logger.info("tutor will speak (%d chars): %r...", len(step.speech_text or ""), preview)
         await self._speak(step.speech_text)
         self._arm_silence_timer()
 
@@ -211,6 +228,8 @@ class LessonProcessor(FrameProcessor):
         self._silence_task = None
 
     async def _speak(self, text: str) -> None:
-        if not text.strip():
+        if not text or not text.strip():
+            logger.warning("_speak called with empty text; skipping")
             return
+        logger.info("TTSSpeakFrame queued (%d chars)", len(text))
         await self.push_frame(TTSSpeakFrame(text=text), FrameDirection.DOWNSTREAM)
