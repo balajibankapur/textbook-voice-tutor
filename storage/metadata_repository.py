@@ -12,7 +12,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from storage.models import ChapterRow, ChunkRow, IngestionStatus, OcrQualityStatus, QAPairRow
+from storage.models import (
+    ChapterRow,
+    ChunkRow,
+    ConceptRow,
+    IngestionStatus,
+    OcrQualityStatus,
+    QAPairRow,
+)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS chapters (
@@ -54,6 +61,21 @@ CREATE TABLE IF NOT EXISTS qa_pairs (
 
 CREATE INDEX IF NOT EXISTS idx_qa_chapter ON qa_pairs(chapter_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_qa_faiss ON qa_pairs(chapter_id, faiss_id);
+
+CREATE TABLE IF NOT EXISTS concepts (
+    concept_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    chapter_id            TEXT NOT NULL REFERENCES chapters(chapter_id) ON DELETE CASCADE,
+    order_index           INTEGER NOT NULL,
+    title                 TEXT NOT NULL,
+    learning_objective    TEXT NOT NULL,
+    key_points_json       TEXT NOT NULL,  -- JSON-encoded list[str]
+    page_numbers_json     TEXT NOT NULL,  -- JSON-encoded list[int]
+    source_chunk_ids_json TEXT NOT NULL,  -- JSON-encoded list[int]
+    created_at            TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_concepts_order ON concepts(chapter_id, order_index);
 """
 
 
@@ -320,5 +342,68 @@ class MetadataRepository:
             page_numbers=json.loads(row["page_numbers_json"]),
             source_chunk_ids=json.loads(row["source_chunk_ids_json"]),
             faiss_id=int(row["faiss_id"]) if row["faiss_id"] is not None else None,
+            created_at=_parse_dt(row["created_at"]),
+        )
+
+    # ---- concepts -----------------------------------------------------------
+
+    def delete_concepts_for_chapter(self, chapter_id: str) -> None:
+        self._conn.execute("DELETE FROM concepts WHERE chapter_id=?", (chapter_id,))
+        self._conn.commit()
+
+    def insert_concepts(self, rows: list[ConceptRow]) -> list[int]:
+        ids: list[int] = []
+        with self._conn:
+            for r in rows:
+                cur = self._conn.execute(
+                    """
+                    INSERT INTO concepts(chapter_id, order_index, title, learning_objective,
+                        key_points_json, page_numbers_json, source_chunk_ids_json, created_at)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        r.chapter_id,
+                        r.order_index,
+                        r.title,
+                        r.learning_objective,
+                        json.dumps(r.key_points),
+                        json.dumps(r.page_numbers),
+                        json.dumps(r.source_chunk_ids),
+                        r.created_at.isoformat(),
+                    ),
+                )
+                ids.append(int(cur.lastrowid))
+        return ids
+
+    def concept_count(self, chapter_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM concepts WHERE chapter_id=?", (chapter_id,)
+        ).fetchone()
+        return int(row[0])
+
+    def list_concepts(self, chapter_id: str) -> list[ConceptRow]:
+        rows = self._conn.execute(
+            "SELECT * FROM concepts WHERE chapter_id=? ORDER BY order_index",
+            (chapter_id,),
+        ).fetchall()
+        return [self._row_to_concept(r) for r in rows]
+
+    def get_concept(self, concept_id: int) -> ConceptRow | None:
+        row = self._conn.execute(
+            "SELECT * FROM concepts WHERE concept_id=?", (concept_id,)
+        ).fetchone()
+        return self._row_to_concept(row) if row else None
+
+    @staticmethod
+    def _row_to_concept(row: sqlite3.Row) -> ConceptRow:
+        return ConceptRow(
+            concept_id=int(row["concept_id"]),
+            chapter_id=row["chapter_id"],
+            order_index=int(row["order_index"]),
+            title=row["title"],
+            learning_objective=row["learning_objective"],
+            key_points=json.loads(row["key_points_json"]),
+            page_numbers=json.loads(row["page_numbers_json"]),
+            source_chunk_ids=json.loads(row["source_chunk_ids_json"]),
             created_at=_parse_dt(row["created_at"]),
         )

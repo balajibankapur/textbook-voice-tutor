@@ -61,3 +61,17 @@ class QAPairRow:
     source_chunk_ids: list[int]
     faiss_id: int | None  # assigned when added to FAISS
     created_at: datetime
+
+
+@dataclass
+class ConceptRow:
+    """One teachable concept extracted from a chapter — the atom of Lesson mode."""
+    concept_id: int | None  # None before insertion
+    chapter_id: str
+    order_index: int  # 0-based; what order to teach the chapter in
+    title: str
+    learning_objective: str  # "The student can..."
+    key_points: list[str]    # grounded bullet points the explanation should cover
+    page_numbers: list[int]
+    source_chunk_ids: list[int]
+    created_at: datetime

@@ -185,6 +185,43 @@ class JevDecisionsClient:
             raw={"noul": supported_p, "threshold": self.noul_threshold},
         )
 
+    # ---- lesson-mode judge ----------------------------------------------
+
+    def judge_answer(
+        self,
+        *,
+        concept_title: str,
+        learning_objective: str,
+        key_points: Sequence[str],
+        student_answer: str,
+    ) -> float:
+        """Return a calibrated 0–1 probability that the student's answer
+        correctly captures the concept's learning objective. Used by Lesson mode.
+        """
+        if not student_answer.strip():
+            raise JevError("cannot judge an empty answer")
+        key_points_block = "\n".join(f"- {kp}" for kp in key_points) or "(none)"
+        state = (
+            f"Concept: {concept_title}\n"
+            f"Learning objective: {learning_objective}\n"
+            f"Key points the student should capture (any phrasing is fine):\n"
+            f"{key_points_block}\n\n"
+            f"Student's answer:\n{student_answer}"
+        )
+        questions = {
+            "correct": {
+                "type": "noul",
+                "instructions": (
+                    "The student's answer correctly captures the concept's "
+                    "learning objective. Paraphrases and simpler wording count "
+                    "as correct. The answer does NOT need to use the exact key "
+                    "points verbatim — it needs to capture the same substance."
+                ),
+            },
+        }
+        answers = self._post_decisions(state=state, questions=questions)
+        return _get_noul(answers, "correct")
+
     # ---- Q&A matcher -----------------------------------------------------
 
     def match_choice(

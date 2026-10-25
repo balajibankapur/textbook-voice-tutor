@@ -48,7 +48,15 @@ from decision.jev_decisions_client import JevDecisionsClient
 from llm.answer_generator import AnswerGenerator
 from ingestion.ingest_chapter import ingest_chapter
 from ingestion.build_qa_cache import build_qa_cache
+from ingestion.build_concepts import build_concepts
+from ingestion.concept_extractor import ConceptExtractor
 from ingestion.qa_generator import QAGenerator
+from conversation.lesson_controller import (
+    JudgementTier,
+    LessonController,
+    LessonMode,
+    LessonStage,
+)
 from retrieval.qa_matcher import QAMatcher
 from voice.speech_to_text import SpeechToText, SpeechToTextError
 from voice.text_to_speech import TextToSpeech, TextToSpeechError
@@ -140,6 +148,30 @@ def _qa_generator(pairs_per_chunk: int) -> QAGenerator | None:
         base_url=settings.llm_base_url,
         model=settings.llm_model,
         pairs_per_chunk=pairs_per_chunk,
+    )
+
+
+@st.cache_resource
+def _concept_extractor() -> ConceptExtractor | None:
+    if not settings.llm_api_key:
+        return None
+    return ConceptExtractor(
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
+        model=settings.llm_model,
+    )
+
+
+@st.cache_resource
+def _lesson_controller() -> LessonController | None:
+    jev = _jev_client()
+    gen = _answer_generator()
+    if jev is None or gen is None:
+        return None
+    return LessonController(
+        repo=_repo(),
+        answer_generator=gen,
+        decisions_client=jev,
     )
 
 
@@ -270,13 +302,18 @@ def main() -> None:
                     f"`{ch.chapter_id}` · {ch.page_count}p · {ch.ingestion_status.value}"
                 )
 
-    ingest_tab, ask_tab = st.tabs(["Ingest a chapter", "Ask a question"])
+    ingest_tab, ask_tab, lesson_tab = st.tabs(
+        ["Ingest a chapter", "Ask a question", "Lesson mode"]
+    )
 
     with ingest_tab:
         _render_ingest_tab()
 
     with ask_tab:
         _render_ask_tab()
+
+    with lesson_tab:
+        _render_lesson_tab()
 
 
 def _render_ingest_tab() -> None:
@@ -344,6 +381,9 @@ def _render_ingest_tab() -> None:
 
     # Q&A cache corpus — manage separately for each ingested chapter.
     _render_qa_cache_panel()
+
+    # Lesson concepts — same shape as the Q&A panel.
+    _render_concepts_panel()
 
 
 def _render_qa_cache_panel() -> None:
@@ -413,6 +453,237 @@ def _render_qa_cache_panel() -> None:
                 "duration_seconds": round(report.duration_seconds, 2),
             }
         )
+
+
+def _render_concepts_panel() -> None:
+    ready = [c for c in _repo().list_chapters() if c.ingestion_status == IngestionStatus.READY]
+    if not ready:
+        return
+    st.divider()
+    st.subheader("Lesson plan (for Lesson mode)")
+    st.caption(
+        "Extract 3–6 teachable concepts from the chapter so Lesson mode can "
+        "walk through them one at a time. One-time cost per chapter."
+    )
+    labels = {f"{c.title} ({c.chapter_id})": c.chapter_id for c in ready}
+    pick = st.selectbox("Chapter", list(labels), key="concepts_chapter")
+    chapter_id = labels[pick]
+    existing = _repo().concept_count(chapter_id)
+    st.caption(f"Current concepts for `{chapter_id}`: **{existing}**")
+    if _concept_extractor() is None:
+        st.caption("⚠ LLM api key missing — set OPENAI_API_KEY to build.")
+        return
+    if st.button("Build / rebuild lesson plan", type="primary", key="build_concepts_btn"):
+        with st.spinner("Extracting concepts..."):
+            try:
+                report = build_concepts(
+                    chapter_id=chapter_id,
+                    repo=_repo(),
+                    extractor=_concept_extractor(),
+                )
+            except Exception as exc:
+                logger.exception("concepts build failed")
+                st.error(f"Build failed: {exc}")
+                return
+        st.success(
+            f"Built {report.concepts_persisted} concept(s) from "
+            f"{report.chunks_processed} chunk(s) in {report.duration_seconds:.1f}s."
+        )
+
+
+def _render_lesson_tab() -> None:
+    ready = [c for c in _repo().list_chapters() if c.ingestion_status == IngestionStatus.READY]
+    if not ready:
+        st.info("Ingest a chapter first.")
+        return
+
+    controller = _lesson_controller()
+    if controller is None:
+        st.warning(
+            "Lesson mode needs OPENROUTER_API_KEY (for Jev) and OPENAI_API_KEY "
+            "(for the LLM explanation)."
+        )
+        return
+
+    ss = st.session_state
+    chapter_labels = {f"{c.title} ({c.chapter_id})": c.chapter_id for c in ready}
+
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        label = st.selectbox("Active chapter", list(chapter_labels), key="lesson_chapter")
+    with col2:
+        mode_label = st.radio(
+            "Mode",
+            options=["Teach me (tutor explains, then quizzes)", "Reverse (I explain, tutor checks)"],
+            index=0, horizontal=False, key="lesson_mode",
+        )
+    with col3:
+        st.caption("")
+        if st.button("🔄 Restart lesson", key="lesson_restart"):
+            _reset_lesson_state()
+            st.rerun()
+
+    chapter_id = chapter_labels[label]
+    mode = LessonMode.TEACH if mode_label.startswith("Teach") else LessonMode.REVERSE
+
+    if _repo().concept_count(chapter_id) == 0:
+        st.warning(
+            "This chapter has no lesson plan yet. Build one on the **Ingest a chapter** tab."
+        )
+        return
+
+    # Start a lesson if we don't have one going (or the thread key changed).
+    thread_key = (chapter_id, mode.value)
+    if ss.get("lesson_thread") != thread_key:
+        _reset_lesson_state()
+        ss.lesson_thread = thread_key
+        with st.spinner("Opening the first concept..."):
+            try:
+                state, step = controller.start(chapter_id=chapter_id, mode=mode)
+            except Exception as exc:
+                st.error(f"Couldn't start the lesson: {exc}")
+                return
+        ss.lesson_state = state
+        ss.lesson_step = step
+
+    step = ss.get("lesson_step")
+    if step is None:
+        st.error("Lesson state is missing. Hit Restart.")
+        return
+
+    _render_lesson_step(step, controller)
+
+
+def _render_lesson_step(step, controller) -> None:
+    ss = st.session_state
+    total = step.concept_total
+    idx = step.concept_index + 1 if step.concept_index < total else total
+
+    # progress bar
+    st.progress(min(1.0, step.concept_index / total if total else 0),
+                text=f"Concept {idx} / {total}")
+
+    stage_colors = {
+        LessonStage.PRESENT:         ("🔵", "Teaching"),
+        LessonStage.ASK:             ("🟡", "Your turn — listen for the question"),
+        LessonStage.LISTEN:          ("🟢", "Your turn — press to answer"),
+        LessonStage.CLARIFY:         ("🟠", "Let's try that again"),
+        LessonStage.PRAISE_AND_NEXT: ("🟢", "Nice — moving on"),
+        LessonStage.LESSON_COMPLETE: ("🏁", "Lesson complete"),
+        LessonStage.FAILED:          ("🔴", "Something went wrong"),
+    }
+    emoji, status = stage_colors.get(step.stage, ("", step.stage.value))
+    if step.concept:
+        st.markdown(f"**{emoji} {status}** · _{step.concept.title}_")
+    else:
+        st.markdown(f"**{emoji} {status}**")
+
+    if step.error:
+        st.error(step.error)
+        if st.button("Try again", key="lesson_retry_err"):
+            ss.lesson_state.attempts = 0
+            st.rerun()
+        return
+
+    if step.stage is LessonStage.LESSON_COMPLETE:
+        st.success(step.speech_text or "Lesson complete.")
+        _autoplay_once(_synthesize_cached(step.speech_text) or b"", key=f"lesson_done")
+        return
+
+    # tutor speech block
+    if step.speech_text:
+        st.markdown(f"> {step.speech_text}")
+        audio_bytes = _synthesize_cached(step.speech_text)
+        if audio_bytes:
+            _autoplay_once(
+                audio_bytes,
+                key=f"lesson:{step.concept_index}:{step.stage.value}:{step.attempts_on_concept}",
+            )
+
+    # If we have a question to ask on this stage, surface it as the prompt.
+    if step.prompt_text and step.stage in {LessonStage.PRESENT, LessonStage.ASK, LessonStage.LISTEN, LessonStage.CLARIFY}:
+        st.markdown(f"**❓ {step.prompt_text}**")
+
+    if step.judgement:
+        j = step.judgement
+        emoji = {JudgementTier.CORRECT: "✅", JudgementTier.PARTIAL: "🟡", JudgementTier.WRONG: "🟠"}[j.tier]
+        st.caption(
+            f"{emoji} Jev judgement — tier: {j.tier.value} · "
+            f"noul: {j.probability:.2f} "
+            f"(correct ≥ {j.noul_threshold_correct:.2f}, partial ≥ {j.noul_threshold_partial:.2f})"
+        )
+
+    # After PRESENT, auto-advance (nothing to wait for from the student).
+    # After PRAISE_AND_NEXT or CLARIFY, offer a "Continue" button.
+    if step.stage is LessonStage.PRESENT:
+        if st.button("I'm ready — ask me the question", type="primary", key="lesson_ready"):
+            ss.lesson_step = controller.advance(ss.lesson_state) if False else _advance_to_listen(step)
+            st.rerun()
+    elif step.stage in {LessonStage.ASK, LessonStage.LISTEN, LessonStage.CLARIFY}:
+        _render_lesson_answer_input(controller)
+    elif step.stage is LessonStage.PRAISE_AND_NEXT:
+        if st.button("Next concept →", type="primary", key="lesson_next"):
+            ss.lesson_step = controller.advance(ss.lesson_state)
+            st.rerun()
+
+
+def _advance_to_listen(step):
+    """Transition PRESENT → LISTEN by reusing the step's prompt + context."""
+    return type(step)(
+        stage=LessonStage.LISTEN,
+        concept=step.concept,
+        concept_index=step.concept_index,
+        concept_total=step.concept_total,
+        attempts_on_concept=step.attempts_on_concept,
+        prompt_text=step.prompt_text,
+    )
+
+
+def _render_lesson_answer_input(controller) -> None:
+    """Mic + text fallback for the student's answer."""
+    ss = st.session_state
+    st.caption("🎙 Press to answer — or type below if you prefer.")
+    key = f"lesson_voice_{ss.lesson_state.concept_index}_{ss.lesson_state.attempts}"
+    audio = st.audio_input("Record answer", key=key)
+    typed = st.text_input(
+        "Or type your answer",
+        key=f"lesson_text_{ss.lesson_state.concept_index}_{ss.lesson_state.attempts}",
+        placeholder="Type here if you don't want to speak.",
+    )
+
+    reply_text: str | None = None
+    if audio is not None and audio.getvalue():
+        audio_bytes = audio.getvalue()
+        hash_key = f"lesson_reply:{len(audio_bytes)}:{hashlib_md5(audio_bytes[:4096])}"
+        if ss.get("lesson_last_audio_key") != hash_key:
+            ss.lesson_last_audio_key = hash_key
+            with st.spinner("Transcribing..."):
+                try:
+                    transcript = _stt().transcribe(
+                        audio_bytes,
+                        filename_hint="lesson.wav",
+                        content_type=getattr(audio, "type", None) or "audio/wav",
+                        language=settings.stt_language,
+                    )
+                except Exception as exc:
+                    st.error(f"Transcription failed: {exc}")
+                    return
+            reply_text = transcript.text
+            st.success(f"Transcribed: {reply_text}")
+    elif typed.strip() and st.button("Submit written answer", key="lesson_submit_text"):
+        reply_text = typed.strip()
+
+    if reply_text:
+        with st.spinner("Checking your answer..."):
+            next_step = controller.submit_answer(ss.lesson_state, reply_text)
+        ss.lesson_step = next_step
+        st.rerun()
+
+
+def _reset_lesson_state() -> None:
+    ss = st.session_state
+    for key in ("lesson_thread", "lesson_state", "lesson_step", "lesson_last_audio_key"):
+        ss.pop(key, None)
 
 
 def _render_ask_tab() -> None:
