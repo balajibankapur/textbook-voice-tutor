@@ -20,14 +20,15 @@ def hashlib_md5(data: bytes) -> str:
 
 
 def _autoplay_once(audio_bytes: bytes, key: str) -> None:
-    """Play audio exactly once per unique `key`, bypassing Streamlit's audio widget.
+    """Play audio once per unique `key`, with a visible player as fallback.
 
-    Streamlit's `st.audio(..., autoplay=True)` tends to replay on reruns —
-    especially when other widgets (like st.audio_input) trigger script runs.
-    This renders a bare HTML <audio autoplay> element wrapped in an iframe
-    (via components.html) only on the first call with a given key; subsequent
-    calls with the same key render nothing, so the DOM element is gone and
-    cannot replay.
+    Browsers block autoplay until the user has interacted with the page.
+    Showing visible <audio controls> means that when autoplay is blocked
+    (first load of a lesson, especially on Safari), the student can still
+    click Play and hear it.
+
+    We only emit the element on the FIRST call with a given key, so unrelated
+    reruns (follow-up mic widget, state changes) don't replay previous audio.
     """
     played: set = st.session_state.setdefault("autoplayed_keys", set())
     if key in played:
@@ -35,9 +36,9 @@ def _autoplay_once(audio_bytes: bytes, key: str) -> None:
     played.add(key)
     b64 = base64.b64encode(audio_bytes).decode()
     st.html(
-        f'<audio autoplay style="display:none">'
+        f'<audio autoplay controls style="width:100%;height:36px;margin:4px 0;">'
         f'<source src="data:audio/mp3;base64,{b64}" type="audio/mp3">'
-        f"</audio>"
+        f"Your browser can't play audio inline.</audio>"
     )
 from conversation.clarification import combine_question_with_clarification
 from conversation.context_manager import ConversationContext
@@ -598,6 +599,15 @@ def _render_lesson_step(step, controller) -> None:
             _autoplay_once(
                 audio_bytes,
                 key=f"lesson:{step.concept_index}:{step.stage.value}:{step.attempts_on_concept}",
+            )
+            st.caption(
+                "🔊 If you didn't hear anything, your browser likely blocked autoplay. "
+                "Click the ▶ Play button above."
+            )
+        else:
+            st.warning(
+                "⚠ Text-to-speech didn't produce audio. "
+                "Check that `OPENAI_API_KEY` is set and the TTS model is reachable."
             )
 
     # If we have a question to ask on this stage, surface it as the prompt.
