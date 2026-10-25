@@ -524,8 +524,11 @@ def _render_lesson_tab() -> None:
     with col3:
         st.session_state["lesson_timeout_sec"] = st.slider(
             "Wait (s)",
-            min_value=5, max_value=30, value=10, step=1,
-            help="How long to wait for the student's answer before revealing it.",
+            min_value=5, max_value=30, value=15, step=1,
+            help=(
+                "How long to wait for the student's answer before revealing it. "
+                "Account for how long the explanation audio takes to play."
+            ),
             key="lesson_timeout_slider",
         )
     with col4:
@@ -633,13 +636,10 @@ def _render_lesson_step(step, controller) -> None:
             f"(correct ≥ {j.noul_threshold_correct:.2f}, partial ≥ {j.noul_threshold_partial:.2f})"
         )
 
-    # After PRESENT, auto-advance (nothing to wait for from the student).
-    # After PRAISE_AND_NEXT or CLARIFY, offer a "Continue" button.
-    if step.stage is LessonStage.PRESENT:
-        if st.button("I'm ready — ask me the question", type="primary", key="lesson_ready"):
-            ss.lesson_step = controller.advance(ss.lesson_state) if False else _advance_to_listen(step)
-            st.rerun()
-    elif step.stage in {LessonStage.ASK, LessonStage.LISTEN, LessonStage.CLARIFY}:
+    # In every stage where the student speaks, the mic is live immediately —
+    # no "I'm ready" gate. The tutor's audio plays alongside; the student can
+    # answer whenever they're ready.
+    if step.stage in {LessonStage.PRESENT, LessonStage.ASK, LessonStage.LISTEN, LessonStage.CLARIFY}:
         _render_lesson_answer_input(controller)
     elif step.stage is LessonStage.PRAISE_AND_NEXT:
         if st.button("Next concept →", type="primary", key="lesson_next"):
@@ -647,19 +647,7 @@ def _render_lesson_step(step, controller) -> None:
             st.rerun()
 
 
-def _advance_to_listen(step):
-    """Transition PRESENT → LISTEN by reusing the step's prompt + context."""
-    return type(step)(
-        stage=LessonStage.LISTEN,
-        concept=step.concept,
-        concept_index=step.concept_index,
-        concept_total=step.concept_total,
-        attempts_on_concept=step.attempts_on_concept,
-        prompt_text=step.prompt_text,
-    )
-
-
-LESSON_SILENCE_TIMEOUT_SECONDS = 10
+LESSON_SILENCE_TIMEOUT_SECONDS = 15
 
 
 def _render_lesson_answer_input(controller) -> None:
