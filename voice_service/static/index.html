@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Textbook Voice Tutor — Lesson mode</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 0;
+      background: #0f0f12; color: #eaeaea;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; box-sizing: border-box;
+    }
+    .card {
+      width: 100%; max-width: 640px;
+      background: #16161a; border: 1px solid #2a2a30;
+      border-radius: 16px; padding: 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    h1 { margin: 0 0 6px 0; font-size: 26px; }
+    .sub { color: #9a9aa5; margin: 0 0 28px 0; font-size: 14px; }
+    label { display: block; margin: 14px 0 6px 0; font-size: 13px; color: #c9c9d1; }
+    select, button {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid #2d2d35; background: #202026; color: #eaeaea;
+      font-size: 15px; margin-top: 2px;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button.primary {
+      background: #4b9c6b; border-color: #4b9c6b; color: #ffffff;
+      font-weight: 600; margin-top: 18px; cursor: pointer;
+    }
+    button.primary:hover { background: #5aad7b; }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.danger {
+      background: #a0484b; border-color: #a0484b; color: #fff;
+      cursor: pointer; margin-top: 10px;
+    }
+    .pill {
+      display: inline-block; padding: 6px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+    }
+    .pill.idle { background: #2a2a30; color: #9a9aa5; }
+    .pill.live { background: #4b9c6b22; color: #4b9c6b; border: 1px solid #4b9c6b55; }
+    .pill.err  { background: #a0484b22; color: #e07a7d; border: 1px solid #a0484b55; }
+    .status { margin: 24px 0 0 0; display: flex; align-items: center; gap: 10px; }
+    #log {
+      margin-top: 20px; font-family: 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 12px; color: #9a9aa5;
+      background: #0b0b0e; border: 1px solid #22222a; border-radius: 8px;
+      padding: 10px; max-height: 160px; overflow-y: auto; white-space: pre-wrap;
+    }
+    .hint { font-size: 12px; color: #7a7a85; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Lesson mode</h1>
+    <p class="sub">Pick a chapter, press Start, then just talk to the tutor.
+      No buttons after that — speak when you want, pause when you want.</p>
+
+    <label for="chapter">Chapter</label>
+    <select id="chapter"></select>
+
+    <label for="mode">Mode</label>
+    <select id="mode">
+      <option value="teach">Teach me (tutor explains, then quizzes)</option>
+      <option value="reverse">Reverse (I explain, tutor checks)</option>
+    </select>
+
+    <div class="row">
+      <button id="start" class="primary">▶ Start lesson</button>
+      <button id="stop" class="danger" style="display:none;">⏹ End lesson</button>
+    </div>
+
+    <div class="status">
+      <span class="pill idle" id="status">Idle</span>
+      <audio id="player" autoplay playsinline></audio>
+    </div>
+
+    <div class="hint">The browser will ask for mic permission once per session.
+      Your voice is streamed to the local server only.</div>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const chapterSel = document.getElementById('chapter');
+    const modeSel = document.getElementById('mode');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const statusEl = document.getElementById('status');
+    const player = document.getElementById('player');
+    const logEl = document.getElementById('log');
+
+    const log = (...args) => {
+      const line = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+      logEl.textContent += line + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(...args);
+    };
+
+    const setStatus = (text, cls) => {
+      statusEl.textContent = text;
+      statusEl.className = 'pill ' + (cls || 'idle');
+    };
+
+    let pc = null;
+    let localStream = null;
+
+    async function loadChapters() {
+      const r = await fetch('/chapters');
+      const chs = await r.json();
+      if (!chs.length) {
+        chapterSel.innerHTML = '<option value="">— no chapters with a lesson plan built —</option>';
+        startBtn.disabled = true;
+        return;
+      }
+      chapterSel.innerHTML = chs.map(c =>
+        `<option value="${c.chapter_id}">${c.title} (${c.chapter_id}) — ${c.concept_count} concepts</option>`
+      ).join('');
+    }
+
+    async function start() {
+      startBtn.disabled = true;
+      setStatus('Starting…', 'idle');
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({audio: true});
+      } catch (err) {
+        log('Mic permission denied or unavailable:', err.message);
+        setStatus('Mic blocked', 'err');
+        startBtn.disabled = false;
+        return;
+      }
+
+      pc = new RTCPeerConnection({
+        iceServers: [{urls: 'stun:stun.l.google.com:19302'}],
+      });
+
+      // Send mic audio up.
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // Attach tutor audio down.
+      pc.addTransceiver('audio', {direction: 'recvonly'});
+      pc.ontrack = (event) => {
+        log('Receiving tutor audio stream');
+        if (event.streams && event.streams[0]) {
+          player.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        log('WebRTC state:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          setStatus('🎙 Live — just talk', 'live');
+          stopBtn.style.display = '';
+        } else if (['failed','disconnected','closed'].includes(pc.connectionState)) {
+          setStatus('Disconnected', 'err');
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const r = await fetch('/webrtc/offer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          sdp: pc.localDescription.sdp,
+          type: pc.localDescription.type,
+          chapter_id: chapterSel.value,
+          mode: modeSel.value,
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.text();
+        log('Server rejected offer:', err);
+        setStatus('Error', 'err');
+        startBtn.disabled = false;
+        return;
+      }
+      const answer = await r.json();
+      await pc.setRemoteDescription(answer);
+      log('Session negotiated');
+    }
+
+    function stop() {
+      if (pc) { pc.close(); pc = null; }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      stopBtn.style.display = 'none';
+      startBtn.disabled = false;
+      setStatus('Idle', 'idle');
+    }
+
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+
+    loadChapters();
+  </script>
+</body>
+</html>

@@ -306,9 +306,7 @@ def main() -> None:
                     f"`{ch.chapter_id}` · {ch.page_count}p · {ch.ingestion_status.value}"
                 )
 
-    ingest_tab, ask_tab, lesson_tab = st.tabs(
-        ["Ingest a chapter", "Ask a question", "Lesson mode"]
-    )
+    ingest_tab, ask_tab = st.tabs(["Ingest a chapter", "Ask a question"])
 
     with ingest_tab:
         _render_ingest_tab()
@@ -316,8 +314,8 @@ def main() -> None:
     with ask_tab:
         _render_ask_tab()
 
-    with lesson_tab:
-        _render_lesson_tab()
+    # Lesson mode has moved to the real-time voice service — point students there.
+    _render_lesson_service_hint()
 
 
 def _render_ingest_tab() -> None:
@@ -459,6 +457,21 @@ def _render_qa_cache_panel() -> None:
         )
 
 
+def _render_lesson_service_hint() -> None:
+    """Visible pointer at the bottom of the page toward the voice service."""
+    ready = [c for c in _repo().list_chapters() if c.ingestion_status == IngestionStatus.READY]
+    if not ready:
+        return
+    st.divider()
+    st.caption(
+        "🎙 **Lesson mode is now a separate real-time voice service** "
+        "(Pipecat + WebRTC + Silero VAD) with natural interruption. "
+        "Build a lesson plan on the Ingest tab, then: "
+        "`uvicorn voice_service.server:app --host 0.0.0.0 --port 7860` "
+        "and open http://localhost:7860"
+    )
+
+
 def _render_concepts_panel() -> None:
     ready = [c for c in _repo().list_chapters() if c.ingestion_status == IngestionStatus.READY]
     if not ready:
@@ -495,7 +508,8 @@ def _render_concepts_panel() -> None:
         )
 
 
-def _render_lesson_tab() -> None:
+def _render_lesson_tab_DEPRECATED() -> None:
+    # Replaced by voice_service/ — see _render_lesson_service_hint().
     ready = [c for c in _repo().list_chapters() if c.ingestion_status == IngestionStatus.READY]
     if not ready:
         st.info("Ingest a chapter first.")

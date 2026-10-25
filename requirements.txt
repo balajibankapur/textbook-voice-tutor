@@ -1,9 +1,13 @@
 # Core
 python-dotenv>=1.0.0
 
-# UI
+# UI (Streamlit for ingestion, eval, Q&A cache mgmt)
 streamlit>=1.37.0
-streamlit-autorefresh>=1.0.1  # ticks reruns for Lesson mode's silence countdown
+
+# Real-time voice service (separate FastAPI app in voice_service/)
+pipecat-ai[openai,silero,webrtc]>=1.14.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
 
 # PDF + OCR
 PyMuPDF>=1.24.0

@@ -38,6 +38,15 @@ python -m evaluation.evaluate_pipeline --dataset evaluation/datasets/plants.json
 python -m evaluation.evaluate_pipeline --dataset evaluation/datasets/plants.json --out data/eval --qa-cache
 ```
 
+## The two services
+
+| App | Purpose | How to run |
+|---|---|---|
+| **Streamlit** (`app.py`) | Chapter ingestion · Q&A cache · lesson-plan builder · text ask | `streamlit run app.py` |
+| **Pipecat voice service** (`voice_service/`) | Real-time voice Lesson mode with WebRTC + VAD + barge-in | `uvicorn voice_service.server:app --port 7860` |
+
+The voice service reuses the same SQLite DB, FAISS indices, `LessonController`, and Jev client as the Streamlit app. See [`voice_service/README.md`](voice_service/README.md) for the voice-side details.
+
 ## Setup
 
 ```bash
