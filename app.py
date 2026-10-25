@@ -10,6 +10,9 @@ import streamlit as st
 
 import base64
 import hashlib
+import time
+
+from streamlit_autorefresh import st_autorefresh
 
 from config.logging_config import configure_logging
 from config.settings import settings
@@ -509,7 +512,7 @@ def _render_lesson_tab() -> None:
     ss = st.session_state
     chapter_labels = {f"{c.title} ({c.chapter_id})": c.chapter_id for c in ready}
 
-    col1, col2, col3 = st.columns([2, 2, 1])
+    col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
     with col1:
         label = st.selectbox("Active chapter", list(chapter_labels), key="lesson_chapter")
     with col2:
@@ -519,8 +522,15 @@ def _render_lesson_tab() -> None:
             index=0, horizontal=False, key="lesson_mode",
         )
     with col3:
+        st.session_state["lesson_timeout_sec"] = st.slider(
+            "Wait (s)",
+            min_value=5, max_value=30, value=10, step=1,
+            help="How long to wait for the student's answer before revealing it.",
+            key="lesson_timeout_slider",
+        )
+    with col4:
         st.caption("")
-        if st.button("🔄 Restart lesson", key="lesson_restart"):
+        if st.button("🔄 Restart", key="lesson_restart"):
             _reset_lesson_state()
             st.rerun()
 
@@ -649,9 +659,61 @@ def _advance_to_listen(step):
     )
 
 
+LESSON_SILENCE_TIMEOUT_SECONDS = 10
+
+
 def _render_lesson_answer_input(controller) -> None:
-    """Mic + text fallback for the student's answer."""
+    """Mic + text input + silence-timeout auto-reveal for Lesson mode.
+
+    If the student doesn't answer within LESSON_SILENCE_TIMEOUT_SECONDS, the
+    tutor automatically reveals the answer and moves on. A visible countdown
+    tells the student what's about to happen, with "Reveal now" + "More time"
+    buttons to override.
+    """
     ss = st.session_state
+
+    # Mark when LISTEN started so we can show a countdown.
+    listen_key = f"listen_start:{ss.lesson_state.concept_index}:{ss.lesson_state.attempts}"
+    if ss.get("lesson_listen_key") != listen_key:
+        ss.lesson_listen_key = listen_key
+        ss.lesson_listen_started = time.time()
+
+    timeout = int(ss.get("lesson_timeout_sec", LESSON_SILENCE_TIMEOUT_SECONDS))
+    elapsed = int(time.time() - ss.lesson_listen_started)
+    remaining = max(0, timeout - elapsed)
+
+    # Tick reruns every ~1s so the countdown + auto-reveal can fire.
+    st_autorefresh(
+        interval=1000,
+        limit=timeout + 2,
+        key=f"lesson_tick:{listen_key}",
+    )
+
+    # Countdown line + override buttons.
+    col1, col2, col3 = st.columns([3, 1, 1])
+    with col1:
+        if remaining > 0:
+            st.caption(
+                f"⏳ Revealing the answer in **{remaining}s** if there's no reply — "
+                "take your time, or use the buttons."
+            )
+        else:
+            st.caption("⌛ Revealing the answer…")
+    with col2:
+        if st.button("More time", key=f"lesson_more_time_{listen_key}"):
+            ss.lesson_listen_started = time.time()
+            st.rerun()
+    with col3:
+        if st.button("Reveal now", key=f"lesson_reveal_{listen_key}"):
+            ss.lesson_step = controller.reveal_answer(ss.lesson_state)
+            st.rerun()
+
+    # Auto-reveal when the timer runs out.
+    if remaining <= 0:
+        ss.lesson_step = controller.reveal_answer(ss.lesson_state)
+        st.rerun()
+        return
+
     st.caption("🎙 Press to answer — or type below if you prefer.")
     key = f"lesson_voice_{ss.lesson_state.concept_index}_{ss.lesson_state.attempts}"
     audio = st.audio_input("Record answer", key=key)
@@ -692,7 +754,10 @@ def _render_lesson_answer_input(controller) -> None:
 
 def _reset_lesson_state() -> None:
     ss = st.session_state
-    for key in ("lesson_thread", "lesson_state", "lesson_step", "lesson_last_audio_key"):
+    for key in (
+        "lesson_thread", "lesson_state", "lesson_step", "lesson_last_audio_key",
+        "lesson_listen_key", "lesson_listen_started",
+    ):
         ss.pop(key, None)
 
 

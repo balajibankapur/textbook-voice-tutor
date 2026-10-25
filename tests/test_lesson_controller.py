@@ -277,6 +277,20 @@ def test_lesson_completes_after_last_concept(seeded) -> None:
     assert step.stage is LessonStage.LESSON_COMPLETE
 
 
+def test_reveal_answer_moves_on_without_judging(seeded) -> None:
+    repo, _ = seeded
+    jev = FakeDecisions()  # judge_answer must NOT be called
+    gen = FakeGenerator(answers_queue=["intro"], rewrites_queue=["Q?"])
+    ctrl = _controller(repo, generator=gen, decisions=jev)
+    state, _ = ctrl.start(chapter_id="ch1", mode=LessonMode.TEACH)
+
+    step = ctrl.reveal_answer(state)
+    assert step.stage is LessonStage.PRAISE_AND_NEXT
+    assert "chapter says" in step.speech_text.lower()
+    assert jev.seen == []  # no judgement call
+    assert state.attempts >= 2  # marked exhausted so advance() moves on
+
+
 def test_thresholds_validated() -> None:
     repo_stub = None  # not needed for this check
     with pytest.raises(ValueError, match="thresholds"):

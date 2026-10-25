@@ -283,6 +283,29 @@ class LessonController:
         state.stage = LessonStage.PRAISE_AND_NEXT
         return step
 
+    def reveal_answer(self, state: "LessonState") -> LessonStep:
+        """Give the student the answer and move on. Used when they don't answer
+        within the UI's silence timeout, or when they tap "Reveal answer."
+
+        No Jev judgement is run — the controller simply speaks the key points
+        gently and marks the attempt budget as exhausted so advance() moves on.
+        """
+        concept = state.current_concept()
+        if concept is None:
+            return self._complete_step(state)
+        state.attempts = max(state.attempts, self.max_attempts_per_concept)
+        state.stage = LessonStage.PRAISE_AND_NEXT
+        clarification = self._compose_clarification(concept, state.mode)
+        gentle = "No worries — here's what the chapter says: " + clarification
+        return LessonStep(
+            stage=LessonStage.PRAISE_AND_NEXT,
+            concept=concept,
+            concept_index=state.concept_index,
+            concept_total=len(state.concepts),
+            attempts_on_concept=state.attempts,
+            speech_text=gentle,
+        )
+
     def advance(self, state: "LessonState") -> LessonStep:
         """Caller invokes this after showing a PRAISE_AND_NEXT or CLARIFY step
         to move on to the next concept (or re-present the same one on CLARIFY).

@@ -3,6 +3,7 @@ python-dotenv>=1.0.0
 
 # UI
 streamlit>=1.37.0
+streamlit-autorefresh>=1.0.1  # ticks reruns for Lesson mode's silence countdown
 
 # PDF + OCR
 PyMuPDF>=1.24.0
