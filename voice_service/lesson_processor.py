@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pipecat.frames.frames import (
+    BotStoppedSpeakingFrame,
     EndFrame,
     Frame,
     StartFrame,
@@ -68,6 +69,10 @@ class LessonProcessor(FrameProcessor):
         self._last_step = None
         self._silence_task: asyncio.Task | None = None
         self._advance_pending = False
+        # Consecutive silence-driven reveals; reset on any student speech.
+        # Caps the cascade so an absent student doesn't blow through a chapter.
+        self._consecutive_silences = 0
+        self._max_consecutive_silences = 2
 
     # ---- Pipecat lifecycle ----------------------------------------------
 
@@ -87,6 +92,15 @@ class LessonProcessor(FrameProcessor):
         if isinstance(frame, EndFrame):
             self._cancel_silence_timer()
             await self.push_frame(frame, direction)
+            return
+
+        if isinstance(frame, BotStoppedSpeakingFrame):
+            # Tutor finished speaking — NOW decide what to do.
+            # (Arming the silence timer here, not when we queue TTS, is the
+            # whole point: the student only has to answer after they've
+            # actually heard the question.)
+            await self.push_frame(frame, direction)
+            await self._on_tutor_finished()
             return
 
         if isinstance(frame, UserStoppedSpeakingFrame):
@@ -139,7 +153,8 @@ class LessonProcessor(FrameProcessor):
         preview = (step.speech_text or "")[:120]
         logger.info("tutor will speak (%d chars): %r...", len(step.speech_text or ""), preview)
         await self._speak(step.speech_text)
-        self._arm_silence_timer()
+        # Do NOT arm the silence timer here — wait for BotStoppedSpeakingFrame
+        # so the student actually hears the question before the countdown starts.
 
     async def _handle_student_answer(self, text: str) -> None:
         if self.state is None:
@@ -147,6 +162,8 @@ class LessonProcessor(FrameProcessor):
             return
 
         logger.info("student said: %r (concept %d)", text, self.state.concept_index)
+        # Any transcription at all means they're engaged — reset the cascade cap.
+        self._consecutive_silences = 0
 
         # If the previous step was waiting on the student to answer, judge now.
         # If the previous step was PRAISE_AND_NEXT or CLARIFY, treat this as
@@ -178,28 +195,53 @@ class LessonProcessor(FrameProcessor):
         await self._emit_step(step)
 
     async def _emit_step(self, step) -> None:
-        """Speak the step's speech_text and either arm the silence timer or
-        auto-advance (for lesson completion)."""
+        """Just speak the step's speech_text. Advancement + silence timers are
+        driven by BotStoppedSpeakingFrame in _on_tutor_finished(), so TTS has
+        finished playing before any new state is entered.
+        """
         if step.speech_text:
             await self._speak(step.speech_text)
-
         if step.stage is LessonStage.LESSON_COMPLETE:
             await self._speak(
                 "That's the whole chapter! Great job. "
                 "You can start a new one when you're ready."
             )
             self._cancel_silence_timer()
+
+    async def _on_tutor_finished(self) -> None:
+        """Called every time the tutor stops speaking.
+
+        - If we're on a PRAISE_AND_NEXT step, auto-advance to the next concept.
+        - If we're on PRESENT / ASK / CLARIFY, arm the silence timer so a
+          student who stays silent for too long gets the answer revealed.
+        - If we've already revealed N in a row with no student input, pause
+          and wait for any speech before continuing — stops the cascade.
+        """
+        if self.state is None or self._last_step is None:
+            return
+        stage = self._last_step.stage
+
+        if stage is LessonStage.LESSON_COMPLETE:
             return
 
-        if step.stage is LessonStage.PRAISE_AND_NEXT:
-            # After praise, auto-advance to the next concept without waiting
-            # for the student to say "ok" — just open the next concept.
+        if stage is LessonStage.PRAISE_AND_NEXT:
             next_step = self.controller.advance(self.state)
             self._last_step = next_step
             await self._emit_step(next_step)
             return
 
-        # LESSON_PRESENT or CLARIFY → wait for the student to answer.
+        # PRESENT / ASK / CLARIFY — wait for the student to speak.
+        if self._consecutive_silences >= self._max_consecutive_silences:
+            logger.info(
+                "pausing lesson after %d consecutive silences",
+                self._consecutive_silences,
+            )
+            await self._speak(
+                "I don't hear you — are you still there? "
+                "Say anything to continue, or close the page to end the lesson."
+            )
+            # Don't arm the timer — wait indefinitely for a transcription.
+            return
         self._arm_silence_timer()
 
     async def _reveal_on_silence(self) -> None:
@@ -210,9 +252,11 @@ class LessonProcessor(FrameProcessor):
             return
         if self.state is None:
             return
+        self._consecutive_silences += 1
         logger.info(
-            "silence timeout fired (%.1fs) — revealing answer",
+            "silence timeout fired (%.1fs, consecutive=%d) — revealing answer",
             self.session.silence_reveal_seconds,
+            self._consecutive_silences,
         )
         step = self.controller.reveal_answer(self.state)
         self._last_step = step
