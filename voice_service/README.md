@@ -27,7 +27,17 @@ No more:
 
 ## Run
 
+**Important:** use the venv's `uvicorn`, not whatever's on your system `PATH`
+(fastapi + pipecat are only installed inside the venv):
+
 ```bash
+.venv/bin/uvicorn voice_service.server:app --host 0.0.0.0 --port 7860
+```
+
+Or activate the venv first and then plain `uvicorn` works:
+
+```bash
+source .venv/bin/activate
 uvicorn voice_service.server:app --host 0.0.0.0 --port 7860
 ```
 
